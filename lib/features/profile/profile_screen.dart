@@ -1,0 +1,258 @@
+import 'package:flutter/material.dart';
+import 'package:sentry_flutter/sentry_flutter.dart';
+
+import '../../core/auth/auth_repository.dart';
+import '../../core/auth/validators.dart';
+import '../../core/data/mock_data.dart';
+import '../../core/theme/theme_controller.dart';
+import '../../core/widgets/app_text_field.dart';
+import '../../core/widgets/primary_button.dart';
+import '../../core/widgets/snack.dart';
+
+/// Готові аватари з HTTPS-посиланнями (завантаження власних файлів — лаб. 6).
+const _avatars = [
+  'https://i.pravatar.cc/150?img=12',
+  'https://i.pravatar.cc/150?img=32',
+  'https://i.pravatar.cc/150?img=47',
+  'https://i.pravatar.cc/150?img=5',
+];
+
+/// Профіль користувача та безпека (FR-04): дані й зміна пароля через Firebase Auth.
+class ProfileScreen extends StatefulWidget {
+  final VoidCallback onSignOut;
+
+  const ProfileScreen({super.key, required this.onSignOut});
+
+  @override
+  State<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends State<ProfileScreen> {
+  final _formKey = GlobalKey<FormState>();
+  final _repo = AuthRepository();
+  final _current = TextEditingController();
+  final _new = TextEditingController();
+  final _repeat = TextEditingController();
+  bool _loading = false;
+
+  @override
+  void dispose() {
+    for (final c in [_current, _new, _repeat]) {
+      c.dispose();
+    }
+    super.dispose();
+  }
+
+  Future<void> _changePassword() async {
+    if (!_formKey.currentState!.validate()) return;
+    setState(() => _loading = true);
+    try {
+      await _repo.changePassword(current: _current.text, next: _new.text);
+      if (!mounted) return;
+      _formKey.currentState!.reset();
+      for (final c in [_current, _new, _repeat]) {
+        c.clear();
+      }
+      showSnack(context, 'Пароль успішно змінено');
+    } catch (e) {
+      if (mounted) showSnack(context, AuthRepository.message(e), error: true);
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _pickAvatar() async {
+    final url = await showDialog<String>(
+      context: context,
+      builder: (ctx) => SimpleDialog(
+        title: const Text('Оберіть фотографію'),
+        children: [
+          Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              for (final u in _avatars)
+                InkWell(
+                  onTap: () => Navigator.pop(ctx, u),
+                  child: CircleAvatar(radius: 36, backgroundImage: NetworkImage(u)),
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+    if (url == null) return;
+    try {
+      await _repo.updatePhotoUrl(url);
+      if (mounted) setState(() {});
+    } catch (e) {
+      if (mounted) showSnack(context, AuthRepository.message(e), error: true);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final theme = Theme.of(context);
+    final user = _repo.currentUser;
+    final name = (user?.displayName?.isNotEmpty ?? false) ? user!.displayName! : MockData.userName;
+    final photo = user?.photoURL;
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 640),
+        child: ListView(
+          padding: const EdgeInsets.all(24),
+          children: [
+            Text('Профіль та безпека',
+                style: theme.textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.bold)),
+            const SizedBox(height: 20),
+            Row(
+              children: [
+                Stack(
+                  children: [
+                    CircleAvatar(
+                      radius: 40,
+                      backgroundImage: photo == null ? null : NetworkImage(photo),
+                      child: photo == null
+                          ? Text(name.isEmpty ? '?' : name[0], style: const TextStyle(fontSize: 24))
+                          : null,
+                    ),
+                    Positioned(
+                      right: 0,
+                      bottom: 0,
+                      child: CircleAvatar(
+                        radius: 14,
+                        backgroundColor: theme.colorScheme.primary,
+                        child: const Icon(Icons.photo_camera, size: 14, color: Colors.white),
+                      ),
+                    ),
+                  ],
+                ),
+                const SizedBox(width: 20),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(name, style: theme.textTheme.titleLarge),
+                      Text('Група ${MockData.userGroup}'),
+                      Text(user?.email ?? '', style: theme.textTheme.bodySmall),
+                      TextButton(onPressed: _pickAvatar, child: const Text('Змінити фотографію')),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            const Divider(height: 40),
+            Text('Зміна пароля', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Form(
+              key: _formKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppTextField(
+                    label: 'Поточний пароль',
+                    controller: _current,
+                    isPassword: true,
+                    validator: (v) => Validators.required(v, 'Поточний пароль'),
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Новий пароль',
+                    controller: _new,
+                    isPassword: true,
+                    validator: Validators.password,
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(
+                    label: 'Повторіть новий пароль',
+                    controller: _repeat,
+                    isPassword: true,
+                    validator: Validators.confirm(() => _new.text),
+                  ),
+                  const SizedBox(height: 16),
+                  PrimaryButton(
+                      label: 'Оновити пароль',
+                      expand: false,
+                      loading: _loading,
+                      onPressed: _changePassword),
+                ],
+              ),
+            ),
+            const Divider(height: 40),
+            Text('Синхронізація та сховище', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 8),
+            const ListTile(
+              contentPadding: EdgeInsets.zero,
+              leading: Icon(Icons.cloud_done_outlined),
+              title: Text('Зв\'язок з хмарою встановлено'),
+              subtitle: Text('Зайнято 142 МБ із 5 ГБ'),
+            ),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                  onPressed: () {},
+                  icon: const Icon(Icons.sync),
+                  label: const Text('Примусова синхронізація')),
+            ),
+            const Divider(height: 40),
+            Text('Налаштування інтерфейсу', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 12),
+            const Text('Мова'),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'uk', label: Text('Українська')),
+                ButtonSegment(value: 'en', label: Text('English')),
+              ],
+              selected: const {'uk'},
+              onSelectionChanged: (_) {},
+            ),
+            const SizedBox(height: 16),
+            const Text('Тема'),
+            const SizedBox(height: 8),
+            ValueListenableBuilder<ThemeMode>(
+              valueListenable: themeMode,
+              builder: (context, mode, _) => SegmentedButton<ThemeMode>(
+                segments: const [
+                  ButtonSegment(value: ThemeMode.light, label: Text('Світла')),
+                  ButtonSegment(value: ThemeMode.dark, label: Text('Темна')),
+                  ButtonSegment(value: ThemeMode.system, label: Text('Системна')),
+                ],
+                selected: {mode},
+                onSelectionChanged: (s) => themeMode.value = s.first,
+              ),
+            ),
+            const SizedBox(height: 16),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: OutlinedButton.icon(
+                // Тестова помилка для перевірки інтеграції Sentry.
+                onPressed: () async {
+                  await Sentry.captureException(
+                      StateError('Тестова помилка Lab4'), stackTrace: StackTrace.current);
+                  if (context.mounted) showSnack(context, 'Тестову помилку надіслано в Sentry');
+                },
+                icon: const Icon(Icons.bug_report_outlined),
+                label: const Text('Згенерувати тестову помилку'),
+              ),
+            ),
+            const SizedBox(height: 32),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: FilledButton.icon(
+                style: FilledButton.styleFrom(
+                  backgroundColor: theme.colorScheme.error,
+                  foregroundColor: theme.colorScheme.onError,
+                  minimumSize: const Size(0, 44),
+                ),
+                onPressed: widget.onSignOut,
+                icon: const Icon(Icons.logout),
+                label: const Text('Вийти з облікового запису'),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
