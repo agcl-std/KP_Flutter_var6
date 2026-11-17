@@ -49,3 +49,4 @@ app.*.map.json
 
 # Локальні ключі (Sentry, Amplitude)
 env.json
+.sentry-native/

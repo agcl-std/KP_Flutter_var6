@@ -64,22 +64,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   Future<void> _pickAvatar() async {
     final url = await showDialog<String>(
       context: context,
-      builder: (ctx) => SimpleDialog(
-        title: const Text('Оберіть фотографію'),
-        children: [
-          Wrap(
-            spacing: 12,
-            runSpacing: 12,
-            children: [
-              for (final u in _avatars)
-                InkWell(
-                  onTap: () => Navigator.pop(ctx, u),
-                  child: CircleAvatar(radius: 36, backgroundImage: NetworkImage(u)),
-                ),
-            ],
-          ),
-        ],
-      ),
+      builder: (_) => const _AvatarPickerDialog(),
     );
     if (url == null) return;
     try {
@@ -253,6 +238,93 @@ class _ProfileScreenState extends State<ProfileScreen> {
           ],
         ),
       ),
+    );
+  }
+}
+
+/// Вибір фото: готові HTTPS-аватари або власне HTTPS-посилання з попереднім переглядом.
+class _AvatarPickerDialog extends StatefulWidget {
+  const _AvatarPickerDialog();
+
+  @override
+  State<_AvatarPickerDialog> createState() => _AvatarPickerDialogState();
+}
+
+class _AvatarPickerDialogState extends State<_AvatarPickerDialog> {
+  final _url = TextEditingController();
+  String? _preview;
+
+  @override
+  void dispose() {
+    _url.dispose();
+    super.dispose();
+  }
+
+  bool get _valid => Uri.tryParse(_url.text.trim())?.scheme == 'https';
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: const Text('Оберіть фотографію'),
+      content: SizedBox(
+        width: 420,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              children: [
+                for (final u in _avatars)
+                  InkWell(
+                    customBorder: const CircleBorder(),
+                    onTap: () => Navigator.pop(context, u),
+                    child: CircleAvatar(radius: 32, backgroundImage: NetworkImage(u)),
+                  ),
+              ],
+            ),
+            const SizedBox(height: 20),
+            const Text('Або вставте власне HTTPS-посилання на зображення'),
+            const SizedBox(height: 8),
+            TextField(
+              controller: _url,
+              decoration: const InputDecoration(hintText: 'https://example.com/photo.jpg'),
+              onChanged: (_) => setState(() => _preview = null),
+              onSubmitted: (_) => setState(() => _preview = _valid ? _url.text.trim() : null),
+            ),
+            if (_url.text.isNotEmpty && !_valid)
+              const Padding(
+                padding: EdgeInsets.only(top: 6),
+                child: Text('Посилання має починатися з https://',
+                    style: TextStyle(color: Colors.red, fontSize: 12)),
+              ),
+            if (_valid)
+              Padding(
+                padding: const EdgeInsets.only(top: 8),
+                child: TextButton(
+                  onPressed: () => setState(() => _preview = _url.text.trim()),
+                  child: const Text('Переглянути'),
+                ),
+              ),
+            if (_preview != null)
+              Center(
+                child: CircleAvatar(
+                  radius: 44,
+                  backgroundImage: NetworkImage(_preview!),
+                  onBackgroundImageError: (_, _) {},
+                ),
+              ),
+          ],
+        ),
+      ),
+      actions: [
+        TextButton(onPressed: () => Navigator.pop(context), child: const Text('Скасувати')),
+        FilledButton(
+          onPressed: _preview == null ? null : () => Navigator.pop(context, _preview),
+          child: const Text('Застосувати'),
+        ),
+      ],
     );
   }
 }
