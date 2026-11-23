@@ -1,62 +1,86 @@
-import 'package:flutter/material.dart';
+import '../models/attachment.dart';
+import '../models/discipline.dart';
+import '../models/study_material.dart';
 
-/// Hardcoded-дані (без бізнес-логіки та бекенду).
+/// Початкові (hardcoded) дані каталогу для першого запуску. Далі дані живуть у CatalogProvider.
 class MockData {
-  static const String userName = 'Голець Роман Ігорович';
-  static const String userFirstName = 'Роман';
-  static const String userGroup = 'ПЗ-31';
-  static const String userEmail = 'roman.holets.pz31@lpnu.ua';
+  static List<Discipline> seedDisciplines() => [
+        const Discipline(
+            id: 'd1',
+            title: 'Кросплатформне програмування',
+            teacher: 'ст. викл. Угриновський Б. В.',
+            semester: 5,
+            color: 0xFF0067C0),
+        const Discipline(
+            id: 'd2',
+            title: 'Бази даних та знань',
+            teacher: 'проф. Шаховська Н. Б.',
+            semester: 5,
+            color: 0xFF2E7D32),
+        const Discipline(
+            id: 'd3',
+            title: 'Архітектура ПЗ (ЯТПЗ)',
+            teacher: 'доц. Федасюк Д. В.',
+            semester: 5,
+            color: 0xFF6A1B9A),
+      ];
 
-  static const List<({String label, String value})> stats = [
-    (label: 'Навчальних дисциплін', value: '6'),
-    (label: 'Тематичні модулі', value: '42'),
-    (label: 'Конспектів та нотаток', value: '28'),
-    (label: 'Вкладених файлів (142 МБ)', value: '26'),
-  ];
-
-  static const List<({String title, String teacher, String info, int topics, Color color})>
-      pinnedDisciplines = [
-    (
-      title: 'Кросплатформне програмування',
-      teacher: 'ст. викл. Угриновський Б. В.',
-      info: '8 матеріалів (Лаб 1, Лаб 2)',
-      topics: 4,
-      color: Color(0xFF0067C0),
-    ),
-    (
-      title: 'Бази даних та знань',
-      teacher: 'проф. Шаховська Н. Б.',
-      info: '12 матеріалів (SQL, ER)',
-      topics: 6,
-      color: Color(0xFF2E7D32),
-    ),
-    (
-      title: 'Архітектура ПЗ (ЯТПЗ)',
-      teacher: 'доц. Федасюк Д. В.',
-      info: '9 матеріалів (UML, B2B)',
-      topics: 5,
-      color: Color(0xFF6A1B9A),
-    ),
-  ];
-
-  static const List<({String title, String type, String discipline, String date})> recent = [
-    (
-      title: 'Методичні вказівки до Лабораторної роботи №2.pdf',
-      type: 'PDF (1.4 МБ)',
-      discipline: 'Кросплатформне програмування',
-      date: 'Сьогодні, 20:45',
-    ),
-    (
-      title: 'Конспект лекції: Патерни навігації HIG vs Material',
-      type: 'Конспект (MD)',
-      discipline: 'Кросплатформне програмування',
-      date: 'Вчора, 18:20',
-    ),
-    (
-      title: 'Документація Flutter Material 3 Guide',
-      type: 'Веб-лінк',
-      discipline: 'Кросплатформне програмування',
-      date: '21.10.2026',
-    ),
-  ];
+  static List<StudyMaterial> seedMaterials() => [
+        StudyMaterial(
+            id: 'm1',
+            title: 'Методичні вказівки до Лабораторної роботи №5',
+            kind: MaterialKind.pdf,
+            disciplineId: 'd1',
+            content: '',
+            attachments: const [
+              Attachment(
+                  name: 'lab5_methodical.pdf',
+                  path: 'assets/files/lab5_methodical.pdf',
+                  isAsset: true,
+                  size: 1126),
+            ],
+            createdAt: DateTime(2026, 11, 20, 20, 45)),
+        StudyMaterial(
+            id: 'm2',
+            title: 'Конспект: Provider та BLoC',
+            kind: MaterialKind.note,
+            disciplineId: 'd1',
+            content: 'ChangeNotifier сповіщає слухачів про зміну стану; Consumer перебудовує лише свою частину дерева.',
+            createdAt: DateTime(2026, 11, 19, 18, 20)),
+        StudyMaterial(
+            id: 'm3',
+            title: 'Документація Flutter: State management',
+            kind: MaterialKind.link,
+            disciplineId: 'd1',
+            content: 'https://docs.flutter.dev/data-and-backend/state-mgmt',
+            createdAt: DateTime(2026, 10, 21, 12, 0)),
+        StudyMaterial(
+            id: 'm4',
+            title: 'Нормальні форми: 1НФ–3НФ',
+            kind: MaterialKind.note,
+            disciplineId: 'd2',
+            content: '1НФ — атомарні значення; 2НФ — немає часткових залежностей; 3НФ — немає транзитивних.',
+            createdAt: DateTime(2026, 11, 10, 9, 30)),
+        StudyMaterial(
+            id: 'm5',
+            title: 'SQL-шпаргалка (JOIN, GROUP BY)',
+            kind: MaterialKind.pdf,
+            disciplineId: 'd2',
+            content: '',
+            attachments: const [
+              Attachment(
+                  name: 'sql_cheatsheet.pdf',
+                  path: 'assets/files/sql_cheatsheet.pdf',
+                  isAsset: true,
+                  size: 1056),
+            ],
+            createdAt: DateTime(2026, 11, 5, 14, 10)),
+        StudyMaterial(
+            id: 'm6',
+            title: 'UML: діаграми класів і послідовностей',
+            kind: MaterialKind.link,
+            disciplineId: 'd3',
+            content: 'https://www.uml-diagrams.org',
+            createdAt: DateTime(2026, 11, 1, 16, 0)),
+      ];
 }

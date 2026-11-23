@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../core/auth/auth_repository.dart';
+import '../../core/state/auth_provider.dart';
 import '../../core/auth/validators.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../core/widgets/auth_scaffold.dart';
@@ -9,7 +10,7 @@ import '../../core/widgets/snack.dart';
 import 'forgot_password_dialog.dart';
 import 'register_screen.dart';
 
-/// Екран авторизації (FR-02, FR-03). Бізнес-логіки немає: «Увійти» просто відкриває головний екран.
+/// Екран авторизації (FR-02, FR-03). Вхід виконує AuthProvider.
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
 
@@ -21,9 +22,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _formKey = GlobalKey<FormState>();
-  final _repo = AuthRepository();
   bool _remember = true;
-  bool _loading = false;
 
   @override
   void dispose() {
@@ -34,15 +33,10 @@ class _LoginScreenState extends State<LoginScreen> {
 
   Future<void> _signIn() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
-    try {
-      await _repo.signIn(email: _email.text.trim(), password: _password.text);
-      // Перехід на головний екран виконує StreamBuilder у main.dart.
-    } catch (e) {
-      if (mounted) showSnack(context, AuthRepository.message(e), error: true);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    final auth = context.read<AuthProvider>();
+    final ok = await auth.signIn(_email.text.trim(), _password.text);
+    // Перехід на головний екран виконує Consumer<AuthProvider> у main.dart.
+    if (!ok && mounted) showSnack(context, auth.error!, error: true);
   }
 
   @override
@@ -91,7 +85,7 @@ class _LoginScreenState extends State<LoginScreen> {
             title: const Text("Запам'ятати мене на цьому комп'ютері"),
           ),
           const SizedBox(height: 12),
-          PrimaryButton(label: 'Увійти в систему', loading: _loading, onPressed: _signIn),
+          PrimaryButton(label: 'Увійти в систему', loading: context.watch<AuthProvider>().busy, onPressed: _signIn),
           const SizedBox(height: 20),
           Center(
             child: Wrap(

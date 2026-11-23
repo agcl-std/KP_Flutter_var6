@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../core/auth/auth_repository.dart';
+import '../../core/state/auth_provider.dart';
+import '../../core/state/profile_provider.dart';
 import '../../core/auth/validators.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../core/widgets/auth_scaffold.dart';
@@ -17,14 +19,12 @@ class RegisterScreen extends StatefulWidget {
 
 class _RegisterScreenState extends State<RegisterScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _repo = AuthRepository();
   final _name = TextEditingController();
   final _group = TextEditingController();
   final _email = TextEditingController();
   final _password = TextEditingController();
   final _confirm = TextEditingController();
   bool _agree = true;
-  bool _loading = false;
 
   @override
   void dispose() {
@@ -40,18 +40,15 @@ class _RegisterScreenState extends State<RegisterScreen> {
       showSnack(context, 'Потрібно погодитися з умовами використання', error: true);
       return;
     }
-    setState(() => _loading = true);
-    try {
-      await _repo.signUp(
-          name: _name.text.trim(), email: _email.text.trim(), password: _password.text);
-      if (!mounted) return;
-      // Закриваємо екран реєстрації; головний екран показує StreamBuilder у main.dart.
-      Navigator.of(context).popUntil((r) => r.isFirst);
-    } catch (e) {
-      if (mounted) showSnack(context, AuthRepository.message(e), error: true);
-    } finally {
-      if (mounted) setState(() => _loading = false);
-    }
+    final auth = context.read<AuthProvider>();
+    final profile = context.read<ProfileProvider>();
+    final ok = await auth.signUp(_name.text.trim(), _email.text.trim(), _password.text);
+    if (!mounted) return;
+    if (!ok) return showSnack(context, auth.error!, error: true);
+    await profile.saveGroup(_group.text); // група зберігається локально
+    if (!mounted) return;
+    // Закриваємо екран реєстрації; головний екран показує Consumer<AuthProvider> у main.dart.
+    Navigator.of(context).popUntil((r) => r.isFirst);
   }
 
   @override
@@ -110,7 +107,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               title: const Text('Погоджуюсь з умовами використання локального сховища'),
             ),
             const SizedBox(height: 12),
-            PrimaryButton(label: 'Зареєструватися', loading: _loading, onPressed: _register),
+            PrimaryButton(label: 'Зареєструватися', loading: context.watch<AuthProvider>().busy, onPressed: _register),
             const SizedBox(height: 16),
             Center(
               child: Wrap(

@@ -8,6 +8,7 @@ class DisciplineCard extends StatelessWidget {
   final int topics;
   final Color color;
   final int semester;
+  final VoidCallback? onTap;
 
   const DisciplineCard({
     super.key,
@@ -17,6 +18,7 @@ class DisciplineCard extends StatelessWidget {
     required this.topics,
     required this.color,
     this.semester = 5,
+    this.onTap,
   });
 
   @override
@@ -29,7 +31,9 @@ class DisciplineCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(8),
         side: BorderSide(color: theme.dividerColor),
       ),
-      child: Container(
+      child: InkWell(
+        onTap: onTap,
+        child: Container(
         decoration: BoxDecoration(border: Border(top: BorderSide(color: color, width: 4))),
         padding: const EdgeInsets.all(16),
         child: Column(
@@ -43,7 +47,7 @@ class DisciplineCard extends StatelessWidget {
                   visualDensity: VisualDensity.compact,
                   padding: EdgeInsets.zero,
                 ),
-                Text('$topics тем', style: theme.textTheme.bodySmall),
+                Text('$topics матеріалів', style: theme.textTheme.bodySmall),
               ],
             ),
             const SizedBox(height: 8),
@@ -54,6 +58,7 @@ class DisciplineCard extends StatelessWidget {
             Text(info, style: theme.textTheme.bodySmall?.copyWith(color: color)),
           ],
         ),
+      ),
       ),
     );
   }

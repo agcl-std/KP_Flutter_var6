@@ -1,7 +1,10 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 
-import '../../core/auth/auth_repository.dart';
-
+import '../../core/state/auth_provider.dart';
+import '../../core/state/profile_provider.dart';
+import '../disciplines/disciplines_screen.dart';
+import '../materials/materials_screen.dart';
 import '../profile/profile_screen.dart';
 import 'home_screen.dart';
 
@@ -25,17 +28,30 @@ class _AppShellState extends State<AppShell> {
 
   int _index = 0;
 
+  @override
+  void initState() {
+    super.initState();
+    // Завантаження актуальних даних профілю при вході в застосунок.
+    WidgetsBinding.instance.addPostFrameCallback((_) => context.read<ProfileProvider>().refresh());
+  }
+
   Widget _page() {
     switch (_index) {
       case 0:
         return const HomeScreen();
-      case 3:
-        return ProfileScreen(
-          onSignOut: () => AuthRepository().signOut(),
-        );
+      case 1:
+        return const DisciplinesScreen();
+      case 2:
+        return const MaterialsScreen();
       default:
-        return Center(child: Text('${_destinations[_index].$3} — буде реалізовано пізніше'));
+        return ProfileScreen(onSignOut: () => context.read<AuthProvider>().signOut());
     }
+  }
+
+  /// Ініціали з імені користувача (до двох літер).
+  static String _initials(String name) {
+    final parts = name.trim().split(RegExp(r'\s+')).where((p) => p.isNotEmpty).take(2);
+    return parts.isEmpty ? '?' : parts.map((p) => p[0].toUpperCase()).join();
   }
 
   @override
@@ -63,9 +79,9 @@ class _AppShellState extends State<AppShell> {
                 extended: width >= 900,
                 selectedIndex: _index,
                 onDestinationSelected: (i) => setState(() => _index = i),
-                leading: const Padding(
-                  padding: EdgeInsets.symmetric(vertical: 12),
-                  child: CircleAvatar(child: Text('РГ')),
+                leading: Padding(
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  child: CircleAvatar(child: Text(_initials(context.watch<ProfileProvider>().name))),
                 ),
                 destinations: [
                   for (final d in _destinations)

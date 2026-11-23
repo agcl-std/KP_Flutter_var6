@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import 'package:sentry_flutter/sentry_flutter.dart';
 
 import '../../core/auth/auth_repository.dart';
 import '../../core/auth/validators.dart';
-import '../../core/data/mock_data.dart';
-import '../../core/theme/theme_controller.dart';
+import '../../core/state/profile_provider.dart';
+import '../../core/state/settings_provider.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/snack.dart';
@@ -29,15 +30,16 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _repo = AuthRepository();
+  final _profileKey = GlobalKey<FormState>();
+  late final _nameCtl = TextEditingController(text: context.read<ProfileProvider>().name);
+  late final _groupCtl = TextEditingController(text: context.read<ProfileProvider>().group);
   final _current = TextEditingController();
   final _new = TextEditingController();
   final _repeat = TextEditingController();
-  bool _loading = false;
 
   @override
   void dispose() {
-    for (final c in [_current, _new, _repeat]) {
+    for (final c in [_nameCtl, _groupCtl, _current, _new, _repeat]) {
       c.dispose();
     }
     super.dispose();
@@ -45,9 +47,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
 
   Future<void> _changePassword() async {
     if (!_formKey.currentState!.validate()) return;
-    setState(() => _loading = true);
     try {
-      await _repo.changePassword(current: _current.text, next: _new.text);
+      await context.read<ProfileProvider>().changePassword(current: _current.text, next: _new.text);
       if (!mounted) return;
       _formKey.currentState!.reset();
       for (final c in [_current, _new, _repeat]) {
@@ -56,8 +57,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
       showSnack(context, 'Пароль успішно змінено');
     } catch (e) {
       if (mounted) showSnack(context, AuthRepository.message(e), error: true);
-    } finally {
-      if (mounted) setState(() => _loading = false);
+    }
+  }
+
+  Future<void> _saveProfile() async {
+    if (!_profileKey.currentState!.validate()) return;
+    try {
+      await context.read<ProfileProvider>().save(name: _nameCtl.text, group: _groupCtl.text);
+      if (mounted) showSnack(context, 'Профіль збережено');
+    } catch (e) {
+      if (mounted) showSnack(context, AuthRepository.message(e), error: true);
     }
   }
 
@@ -68,8 +77,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
     );
     if (url == null) return;
     try {
-      await _repo.updatePhotoUrl(url);
-      if (mounted) setState(() {});
+      await context.read<ProfileProvider>().setPhoto(url);
     } catch (e) {
       if (mounted) showSnack(context, AuthRepository.message(e), error: true);
     }
@@ -78,9 +86,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
-    final user = _repo.currentUser;
-    final name = (user?.displayName?.isNotEmpty ?? false) ? user!.displayName! : MockData.userName;
-    final photo = user?.photoURL;
+    final profile = context.watch<ProfileProvider>();
+    final name = profile.name;
+    final photo = profile.photoUrl;
     return Center(
       child: ConstrainedBox(
         constraints: const BoxConstraints(maxWidth: 640),
@@ -117,14 +125,38 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(name, style: theme.textTheme.titleLarge),
-                      Text('Група ${MockData.userGroup}'),
-                      Text(user?.email ?? '', style: theme.textTheme.bodySmall),
+                      Text(name.isEmpty ? 'Без імені' : name, style: theme.textTheme.titleLarge),
+                      if (profile.group.isNotEmpty) Text('Група ${profile.group}'),
+                      Text(profile.email, style: theme.textTheme.bodySmall),
                       TextButton(onPressed: _pickAvatar, child: const Text('Змінити фотографію')),
                     ],
                   ),
                 ),
               ],
+            ),
+            const Divider(height: 40),
+            Text('Дані профілю', style: theme.textTheme.titleMedium),
+            const SizedBox(height: 12),
+            Form(
+              key: _profileKey,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  AppTextField(
+                    label: 'Ім’я та прізвище',
+                    controller: _nameCtl,
+                    validator: (v) => Validators.required(v, 'Ім’я'),
+                  ),
+                  const SizedBox(height: 12),
+                  AppTextField(label: 'Група', controller: _groupCtl),
+                  const SizedBox(height: 16),
+                  PrimaryButton(
+                      label: 'Зберегти профіль',
+                      expand: false,
+                      loading: profile.busy,
+                      onPressed: _saveProfile),
+                ],
+              ),
             ),
             const Divider(height: 40),
             Text('Зміна пароля', style: theme.textTheme.titleMedium),
@@ -158,7 +190,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   PrimaryButton(
                       label: 'Оновити пароль',
                       expand: false,
-                      loading: _loading,
+                      loading: profile.busy,
                       onPressed: _changePassword),
                 ],
               ),
@@ -195,16 +227,15 @@ class _ProfileScreenState extends State<ProfileScreen> {
             const SizedBox(height: 16),
             const Text('Тема'),
             const SizedBox(height: 8),
-            ValueListenableBuilder<ThemeMode>(
-              valueListenable: themeMode,
-              builder: (context, mode, _) => SegmentedButton<ThemeMode>(
+            Consumer<SettingsProvider>(
+              builder: (context, settings, _) => SegmentedButton<ThemeMode>(
                 segments: const [
                   ButtonSegment(value: ThemeMode.light, label: Text('Світла')),
                   ButtonSegment(value: ThemeMode.dark, label: Text('Темна')),
                   ButtonSegment(value: ThemeMode.system, label: Text('Системна')),
                 ],
-                selected: {mode},
-                onSelectionChanged: (s) => themeMode.value = s.first,
+                selected: {settings.themeMode},
+                onSelectionChanged: (s) => settings.setThemeMode(s.first),
               ),
             ),
             const SizedBox(height: 16),

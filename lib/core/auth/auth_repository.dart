@@ -63,6 +63,11 @@ class AuthRepository {
     _track('password_changed');
   }
 
+  Future<void> updateDisplayName(String name) async {
+    await _auth.currentUser!.updateDisplayName(name);
+    await _auth.currentUser!.reload();
+  }
+
   Future<void> updatePhotoUrl(String url) async {
     await _auth.currentUser!.updatePhotoURL(url);
     await _auth.currentUser!.reload();

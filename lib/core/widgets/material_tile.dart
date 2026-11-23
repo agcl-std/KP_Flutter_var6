@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 
-/// Елемент списку навчальних матеріалів (назва, тип, дисципліна, дата, кнопка).
+/// Елемент списку навчальних матеріалів (назва, тип, дисципліна, дата); відкривається тапом.
 class MaterialTile extends StatelessWidget {
   final String title;
   final String type;
@@ -31,7 +31,8 @@ class MaterialTile extends StatelessWidget {
       title: Text(title, maxLines: 1, overflow: TextOverflow.ellipsis),
       subtitle: Text('$type • $discipline • $date',
           maxLines: 1, overflow: TextOverflow.ellipsis, style: theme.textTheme.bodySmall),
-      trailing: OutlinedButton(onPressed: onOpen, child: const Text('Відкрити')),
+      trailing: const Icon(Icons.chevron_right),
+      onTap: onOpen,
     );
   }
 }
